@@ -1,0 +1,137 @@
+#!/bin/bash
+
+# Copyright (C) 2010 David De Grave <david@ledav.net>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+P_VERSION="1.4.0"
+
+function showHelp
+{
+        echo "MP3 Copier v$P_VERSION, (C) 2010 by David De Grave"
+        echo 
+        echo "Read a mp3 list (path+file) from the standard input stream and copy"
+        echo "each files to the specified directory under alphabetical, structured"
+        echo "directories (<directory>/letter/author/mp3)."
+        echo
+        echo "Usage:"
+        echo " mp3cp [-hclsv] [-j n] [-{m|M} name] <directory>"
+        echo
+        echo "Options:"
+        echo " -h       Show this help screen."
+        echo " -v       Be more verbose."
+        echo " -s       Continue in case of error."
+        echo " -l       Don't copy files but hard link them instead."
+        echo " -L       Same as -l but use symlinks instead."
+        echo " -j n     Transfer n files at the same time (0 = max)."
+        echo " -m name  Create a mp3 playlist file 'name' with the copied items, in 'directory'."
+        echo " -M name  Same as -m but add an entry even if the file already exist when copying."
+        echo
+        return 0
+}
+function get_args {
+	local l=$1 s=$2 p=$3; shift 3
+	args=$(getopt -n "$p" -l "$l" -- "$s" "$@") || return 1
+	echo "$args"
+}
+
+opt_cont=0
+opt_link=0
+opt_soft=0
+opt_verb=0
+opt_planyway=0
+opt_maxsubproc=1
+subproc=0
+
+function check_args {
+	while [ ${#} -gt 0 ]; do
+		case $1 in
+		 -h)	showHelp; exit 0;;
+		 -v)    opt_verb=1;;
+		 -l)	opt_link=1;;
+		 -L)	opt_link=1; opt_soft=1;;
+		 -s)	opt_cont=1;;
+		 -j)    shift; opt_maxsubproc=$1;;
+		 -M)	shift; playlist="$1"; opt_planyway=1;;
+		 -m)	shift; playlist="$1";;
+		 --)	shift; dest="$1";;
+		esac
+		shift
+	done
+}
+
+args=$(get_args "" "hvlLsj:M:m:" "$0" "$@") || exit
+eval check_args "$args"
+
+if [ -z "$dest" ]; then
+        showHelp
+        exit 0
+fi
+if ! [ -d "$dest" ]; then
+	echo "$dest target directory doesn't exist !"
+	exit 2
+fi
+if [ -n "$playlist" ]; then
+	playlist="$dest/$playlist"
+	echo "Creating playlist $playlist ..."
+fi
+if [ $opt_maxsubproc -eq 0 ]; then
+	opt_maxsubproc=$(grep -ci ^proc /proc/cpuinfo)
+fi
+if [ $opt_link -eq 1 ]; then
+	[ $opt_soft ] && link=s || link=l
+fi
+
+#set -x
+
+while read line; do
+	[ -f "$line" ] || continue
+
+	bn=${line##*/}
+	d=${bn%% - *}
+	[ "$d" = "$bn" ] && d="Unknown"
+	a=${d:0:1}
+	a=${a^^}
+
+	if ! [ -d "$dest/$a/$d" ] && ! mkdir -p "$dest/$a/$d"; then
+		[ "$opt_cont" -eq 0 ] && exit 3
+		continue
+	fi
+
+	if [ -e "$dest/$a/$d/$bn" ]; then 
+		[ "$opt_verb" -eq 1 ] && echo "! File $dest/$a/$d/$bn already there. Skipped..."
+		[ $opt_planyway -eq 1 ] && echo "$a/$d/$bn" >> "$playlist"
+#		cp --attributes-only "$line" "$dest/$a/$d"
+		continue
+	fi
+
+	(
+		if cp -v$link "$line" "$dest/$a/$d" 2>&1; then
+			[ -n "$playlist" ] && echo "$a/$d/$bn" >> "$playlist"
+		else
+			# Remove incomplete copied file
+			rm -f "$dest/$a/$d/$bn"
+			rmdir "$dest/$a/$d" &> /dev/null
+			[ "$opt_cont" -eq 0 ] && exit 4
+		fi
+		exit 0
+	) &
+
+	# Use up to x subprocesses in parallel
+	if (( ++subproc >= opt_maxsubproc )); then
+		wait -n || exit $?
+		let subproc--
+	fi
+done
+
+wait
