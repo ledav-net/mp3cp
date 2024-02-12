@@ -16,8 +16,7 @@
 
 P_VERSION="1.4.0"
 
-function showHelp
-{
+function showHelp {
         echo "MP3 Copier v$P_VERSION, (C) 2010 by David De Grave"
         echo 
         echo "Read a mp3 list (path+file) from the standard input stream and copy"
@@ -115,8 +114,7 @@ while read line; do
 		continue
 	fi
 
-	(
-		if cp -v$link "$line" "$dest/$a/$d" 2>&1; then
+	(	if cp -v$link "$line" "$dest/$a/$d"; then
 			[ -n "$playlist" ] && echo "$a/$d/$bn" >> "$playlist"
 		else
 			# Remove incomplete copied file
