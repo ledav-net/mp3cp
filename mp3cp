@@ -17,26 +17,29 @@
 P_VERSION="1.4.0"
 
 function showHelp {
-        echo "MP3 Copier v$P_VERSION, (C) 2010 by David De Grave"
-        echo 
-        echo "Read a mp3 list (path+file) from the standard input stream and copy"
-        echo "each files to the specified directory under alphabetical, structured"
-        echo "directories (<directory>/letter/author/mp3)."
-        echo
-        echo "Usage:"
-        echo " mp3cp [-hclsv] [-j n] [-{m|M} name] <directory>"
-        echo
-        echo "Options:"
-        echo " -h       Show this help screen."
-        echo " -v       Be more verbose."
-        echo " -s       Continue in case of error."
-        echo " -l       Don't copy files but hard link them instead."
-        echo " -L       Same as -l but use symlinks instead."
-        echo " -j n     Transfer n files at the same time (0 = max)."
-        echo " -m name  Create a mp3 playlist file 'name' with the copied items, in 'directory'."
-        echo " -M name  Same as -m but add an entry even if the file already exist when copying."
-        echo
-        return 0
+	cat <<-EOT
+	MP3 Copier v$P_VERSION, (C) 2010 by David De Grave
+
+	Read a mp3 list (path+file) from the standard input stream and copy
+	each files to the specified directory under alphabetical, structured
+	directories (<directory>/letter/author/mp3).
+
+	The mp3 file names should follow the classic format: '<author> - <title>.mp3'
+
+	Usage:
+	 mp3cp [-hsv] [-{l|L}] [-j n] [-{m|M} name] <directory>
+
+	Options:
+	 -h       Show this help screen.
+	 -v       Be more verbose.
+	 -s       Continue in case of error.
+	 -l       Don't copy files but hard link them (don't work with all filesystems).
+	 -L       Same as -l but use symlinks instead.
+	 -j n     Transfer 'n' files at the same time (0 = number of cpu threads).
+	 -m name  Create a mp3 playlist file 'name' with the well copied items in <directory>.
+	 -M name  Same as -m but add an entry even if the file already exist when copying.
+
+	EOT
 }
 function get_args {
 	local l=$1 s=$2 p=$3; shift 3
