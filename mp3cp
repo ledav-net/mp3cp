@@ -41,11 +41,6 @@ function showHelp {
 
 	EOT
 }
-function get_args {
-	local l=$1 s=$2 p=$3; shift 3
-	args=$(getopt -n "$p" -l "$l" -- "$s" "$@") || return 1
-	echo "$args"
-}
 
 opt_cont=0
 opt_link=0
@@ -72,8 +67,7 @@ function check_args {
 	done
 }
 
-args=$(get_args "" "hvlLsj:M:m:" "$0" "$@") || exit
-eval check_args "$args"
+check_args $(getopt -un "$0" -- "hvlLsj:M:m:" "$@") || exit
 
 if [ -z "$dest" ]; then
         showHelp
